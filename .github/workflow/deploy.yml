@@ -1,0 +1,39 @@
+name: Backup Repository to S3
+
+# Trigger the action when changes are pushed to the repository
+on:
+  push:
+    branches:
+      - main  # Change to your branch if needed
+
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      # Step 2: Create a zip file of the repository
+      - name: Zip Repository
+        run: zip -r repo-backup.zip .
+
+      # Step 3: Install AWS CLI
+      - name: Install AWS CLI
+        run: sudo apt-get install awscli -y
+
+      # Step 4: Upload the zip file to S3
+      - name: Upload to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AWS_S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
+        run: |
+          aws s3 cp repo-backup.zip s3://$AWS_S3_BUCKET_NAME/backups/repo-$(date +%F).zip
+
+      # Step 5: Cleanup the local zip file
+      - name: Cleanup
+        run: rm -f repo-backup.zip
