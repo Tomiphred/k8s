@@ -31,15 +31,18 @@ jobs:
       - name: Zip Repository
         run: zip -r K8s-Repo.zip .
 
-      # Step 5: Upload zip file to Google Drive
-      - name: Upload to Google Drive
-        run: |
-          rclone copy K8s-Repo.zip GoogleDrive:/backups/repo-backup-$(date +%F).zip
 
       - name: Debug rclone config
         run: |
           cat ~/.config/rclone/rclone.conf
 
+
+      # Step 5: Upload zip file to Google Drive
+      - name: Upload to Google Drive
+        run: |
+          rclone copy K8s-Repo.zip GoogleDrive:/backups/repo-backup-$(date +%F).zip
+
+      
 
       # Step 6: Cleanup the local zip file
       - name: Cleanup
