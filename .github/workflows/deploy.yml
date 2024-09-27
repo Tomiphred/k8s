@@ -1,9 +1,9 @@
 name: Backup Repository to S3
 
 # Trigger the action when changes are pushed to the repository
-on:
-  push:
-    branches: ["main"]
+# on:
+#   push:
+#     branches: ["main"]
 
 
 jobs:
