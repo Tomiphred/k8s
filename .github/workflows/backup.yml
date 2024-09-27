@@ -38,4 +38,4 @@ jobs:
 
       # Step 6: Cleanup the local zip file
       - name: Cleanup
-        run: rm -f repo-backup.zip
+        run: rm -f K8s-Repo.zip
