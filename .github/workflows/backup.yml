@@ -1,0 +1,41 @@
+name: Backup Repository to Google Drive
+
+# Trigger the action when changes are pushed to the repository or on a schedule
+on:
+  push:
+    branches:
+      - main  # Change to your default branch
+  
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      # Step 2: Install rclone
+      - name: Install rclone
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rclone
+
+      # Step 3: Set up rclone configuration
+      - name: Set up rclone
+        run: |
+          mkdir -p ~/.config/rclone
+          echo "${{ secrets.RCLONE_CONFIG }}" > ~/.config/rclone/rclone.conf
+
+      # Step 4: Create a zip file of the repository
+      - name: Zip Repository
+        run: zip -r K8s-Repo.zip .
+
+      # Step 5: Upload zip file to Google Drive
+      - name: Upload to Google Drive
+        run: |
+          rclone copy K8s-Repo.zip gdrive:/Feranmi/repo-backup-$(date +%F).zip
+
+      # Step 6: Cleanup the local zip file
+      - name: Cleanup
+        run: rm -f repo-backup.zip
