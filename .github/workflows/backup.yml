@@ -1,9 +1,12 @@
-name: Backup Repository to Google Drive
+name: Backup Repository to SharePoint
 
 on:
-  push:
-    branches:
-      - main
+  push: 
+    branches: ['main']
+
+  # Uncomment the schedule if you want to run the backup daily at midnight
+  # schedule:
+  #   - cron: '0 0 * * *' # Runs daily at midnight
 
 jobs:
   backup:
@@ -18,20 +21,20 @@ jobs:
       - name: Install rclone
         run: sudo apt-get install -y rclone
 
-      # Step 3: Set up rclone using Base64 decoded config
+      # Step 3: Set up rclone configuration from Base64 encoded secret
       - name: Set up rclone
         run: |
           mkdir -p ~/.config/rclone
-          echo "${{ secrets.RCLONE_CONFIG_BASE64 }}" | base64 --decode > ~/.config/rclone/rclone.conf
+          echo "${{ secrets.RCLONE_CONFIG }}" | base64 --decode > ~/.config/rclone/rclone.conf
 
       # Step 4: Create a zip file of the repository
       - name: Zip Repository
-        run: zip -r K8s-Repo.zip .
+        run: zip -r backup-$(date +%F).zip .
 
-      # Step 5: Upload zip file to Google Drive
-      - name: Upload to Google Drive
-        run: rclone copy K8s-Repo.zip GoogleDrive:/backups/repo-backup-$(date +%F).zip
+      # Step 5: Upload zip file to SharePoint
+      - name: Upload to SharePoint
+        run: rclone copy backup-$(date +%F).zip sharepoint:/Documents/Repo_Backup/Test
 
       # Step 6: Cleanup the local zip file
       - name: Cleanup
-        run: rm -f K8s-Repo.zip
+        run: rm -f backup-$(date +%F).zip
