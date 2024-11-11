@@ -1,12 +1,11 @@
-name: Backup Repository to SharePoint
+name: Backup Repository to OneDrive
 
 on:
-  push: 
+  push:
     branches: ['main']
-
-  # Uncomment the schedule if you want to run the backup daily at midnight
+  # Uncomment below to run daily at midnight
   # schedule:
-  #   - cron: '0 0 * * *' # Runs daily at midnight
+  #   - cron: '0 0 * * *'
 
 jobs:
   backup:
@@ -17,24 +16,32 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
 
-      # Step 2: Install rclone
-      - name: Install rclone
-        run: sudo apt-get install -y rclone
-
-      # Step 3: Set up rclone configuration from Base64 encoded secret
-      - name: Set up rclone
-        run: |
-          mkdir -p ~/.config/rclone
-          echo "${{ secrets.RCLONE_CONFIG }}" | base64 --decode > ~/.config/rclone/rclone.conf
-
-      # Step 4: Create a zip file of the repository
+      # Step 2: Create a zip file of the repository
       - name: Zip Repository
         run: zip -r backup-$(date +%F).zip .
 
-      # Step 5: Upload zip file to SharePoint
-      - name: Upload to SharePoint
-        run: rclone copy backup-$(date +%F).zip sharepoint:/Documents/Repo_Backup/Test
+      # Step 3: Get Microsoft Graph Access Token
+      - name: Get Access Token
+        id: get_token
+        env:
+          CLIENT_ID: ${{ secrets.ONEDRIVE_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.ONEDRIVE_CLIENT_SECRET }}
+          TENANT_ID: ${{ secrets.ONEDRIVE_TENANT_ID }}
+        run: |
+          response=$(curl -X POST -d "client_id=$CLIENT_ID&scope=https://graph.microsoft.com/.default&client_secret=$CLIENT_SECRET&grant_type=client_credentials" https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token)
+          echo "::set-output name=token::$(echo $response | jq -r .access_token)"
 
-      # Step 6: Cleanup the local zip file
+      # Step 4: Upload to OneDrive Repo_Backup folder
+      - name: Upload to OneDrive
+        env:
+          ACCESS_TOKEN: ${{ steps.get_token.outputs.token }}
+        run: |
+          curl -X PUT \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/zip" \
+            --data-binary @backup-$(date +%F).zip \
+            "https://graph.microsoft.com/v1.0/drives/${{ secrets.ONEDRIVE_DRIVE_ID }}/root:/Repo_Backup/backup-$(date +%F).zip:/content"
+
+      # Step 5: Cleanup
       - name: Cleanup
         run: rm -f backup-$(date +%F).zip
