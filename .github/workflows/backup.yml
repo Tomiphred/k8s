@@ -1,60 +1,41 @@
-name: Backup to OneDrive for Business (with Zip and Date Timestamp)
+name: Backup Repository to OneDrive
 
+# Trigger on push to main branch and on schedule (daily at midnight UTC)
 on:
-  schedule:
-    # Runs daily at midnight UTC
-    - cron: '0 0 * * *'
   push:
     branches:
-      - main  # Trigger on push to the main branch
+      - main
+  # schedule:
+  #   - cron: '0 0 * * *'  # Runs daily at midnight UTC
 
 jobs:
   backup:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repository
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      # Step 2: Install dependencies (zip and rclone)
-      - name: Install zip and rclone
+      - name: Zip repository with timestamp
+        run: zip -r repo_backup_$(date +'%Y-%m-%d').zip .
+
+      - name: Install Rclone
         run: |
-          sudo apt-get update
-          sudo apt-get install -y zip rclone jq
+          curl https://rclone.org/install.sh | sudo bash
+          rclone version
 
-      # Step 3: Generate timestamp and zip the repository
-      - name: Zip the repository with date-only timestamp
-        run: |
-          # Get current date in YYYY-MM-DD format
-          timestamp=$(date +'%Y-%m-%d')
-
-          # Create a zip file with the repository contents and date as timestamp
-          zip -r "repository-backup-$timestamp.zip" . 
-
-      # Step 4: Configure rclone for OneDrive for Business
-      - name: Configure rclone for OneDrive for Business
+      - name: Set up Rclone config
+        env:
+          RCLONE_CONFIG: ${{ secrets.RCLONE_CONFIG }}
         run: |
           mkdir -p ~/.config/rclone
-          rclone config file
+          echo "$RCLONE_CONFIG" > ~/.config/rclone/rclone.conf
 
-          # Set up the rclone configuration for OneDrive (with Azure credentials)
-          echo "[onedrive]" > ~/.config/rclone/rclone.conf
-          echo "type = onedrive" >> ~/.config/rclone/rclone.conf
-          echo "client_id = ${{ secrets.ONEDRIVE_CLIENT_ID }}" >> ~/.config/rclone/rclone.conf
-          echo "client_secret = ${{ secrets.ONEDRIVE_CLIENT_SECRET }}" >> ~/.config/rclone/rclone.conf
-          echo "tenant_id = ${{ secrets.ONEDRIVE_TENANT_ID }}" >> ~/.config/rclone/rclone.conf
-
-      # Step 5: Authenticate rclone and upload the zip file to OneDrive for Business
-      - name: Authenticate rclone and upload zip
+      - name: Upload backup to OneDrive
         run: |
-          # Authenticate using the stored client credentials
-          rclone authorize "onedrive" --token-file ~/.config/rclone/rclone.conf
+          rclone copy repo_backup_$(date +'%Y-%m-%d').zip "OneDrive:Repo Backup" -v --create-empty-src-dirs
 
-          # Upload the zip file with the date-only timestamp to OneDrive (change the folder path as needed)
-          rclone copy "repository-backup-$timestamp.zip" onedrive:/backup-folder/ --progress
-
-      # Step 6: Clean up the zip file (optional)
-      - name: Clean up
-        run: |
-          rm "repository-backup-$timestamp.zip"
+      # - name: Cleanup old backups
+      #   # Remove files older than 7 days from the OneDrive "Repo Backup" directory
+      #   run: |
+      #     rclone delete --min-age 7d "OneDrive:Repo Backup" -v
